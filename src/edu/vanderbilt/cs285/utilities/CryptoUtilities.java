@@ -13,6 +13,7 @@ public class CryptoUtilities {
 
 	public static final String SYMMETRIC_KEY_ALGORITHM = "AES";
 	public static final String ASYMMETRIC_KEY_ALGORITHM = "RSA";
+	public static final String HMAC_ALGORITHM = "HmacMD5";
 	public static final String SESSION_REQUEST = "This is a session request";
 	public static final String PLAINTEXT_ENCODING = "UTF8";
 	public static final String SYM_CYPHER_MODE = "CBC";
@@ -27,31 +28,30 @@ public class CryptoUtilities {
 	public static final int IV_LENGTH = 16;
 	
 	/*
-	 * returns the byte[] that represents E( session request, PSK ) || E( username || salt, PR )
+	 * returns the byte[] that represents E( session request || username || HMAC(MSG, HK), SU )
 	 * that should be sent from the phone to the server every time a new session key is needed.
-	 * As parameters, it takes the Symmetric Secret key, an IV (get a new one with getNewIV())
-	 * the username for the client, and the client's private key to sign the request.
+	 * As parameters, it takes the Symmetric Secret key, the current session key (null if the first time),
+	 * the username for the client, and the server's public key to encrypt the whole thing.
 	 */
-	public static byte[] sessionRequest(Key key, IvParameterSpec iv, String user, PrivateKey pk) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException{
-		
-		Cipher symCipher = getSymmetricCipher();
-		symCipher.init(Cipher.ENCRYPT_MODE, key, iv);
-		byte[] requestPlain = SESSION_REQUEST.getBytes(PLAINTEXT_ENCODING);
-		byte[] requestBytes = symCipher.doFinal(requestPlain);		
+	public static byte[] sessionRequest(Key psk, Key sk, String user, PublicKey su) throws InvalidKeyException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException {
+		String keyString;
+		if (sk == null)
+			keyString = psk.toString();
+		else{
+			byte[] k1 = psk.getEncoded();
+			byte[] k2 = sk.getEncoded();
+			byte[] xor = new byte[k1.length];
+			for (int i =0; i<k1.length; i++){
+				xor[i] = (byte) (k1[i] ^ k2[i]);
+			}
+			keyString = new String(xor);
+		}
+		String payload = SESSION_REQUEST+user;
+		payload += hmacDigest(payload, keyString);
 		
 		Cipher asymCipher = getAsymmetricCipher();
-		asymCipher.init(Cipher.ENCRYPT_MODE, pk);
-		SecureRandom random = new SecureRandom();
-		String salt = new BigInteger(130, random).toString(32);
-		String saltedUser = user+salt;
-		byte[] saltedUserPlainBytes = saltedUser.getBytes(CryptoUtilities.PLAINTEXT_ENCODING);
-		byte[] saltedUserBytes = asymCipher.doFinal(saltedUserPlainBytes);
-		
-		byte[] result = new byte[requestBytes.length + saltedUserBytes.length];;
-		System.arraycopy(requestBytes, 0, result, 0, requestBytes.length);
-		System.arraycopy(saltedUserBytes, 0,result,requestBytes.length,saltedUserBytes.length);
-		
-		return result;
+		asymCipher.init(Cipher.ENCRYPT_MODE, su);
+		return asymCipher.doFinal(payload.getBytes());
 	}
 	
 	/*
@@ -142,28 +142,23 @@ public class CryptoUtilities {
 	/*
 	 * Adding a method for convenient HMAC generation
 	 */
-	 public static String hmacDigest(String msg, String keyString) {
+	 public static String hmacDigest(String msg, String keyString) throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException {
 		 String digest = null;
-		 try {
-			 SecretKeySpec key = new SecretKeySpec((keyString).getBytes("UTF-8"), SYMMETRIC_KEY_ALGORITHM);
-			 Mac mac = Mac.getInstance(SYMMETRIC_KEY_ALGORITHM);
-			 mac.init(key);
+		 SecretKeySpec key = new SecretKeySpec((keyString).getBytes(PLAINTEXT_ENCODING), SYMMETRIC_KEY_ALGORITHM);
+		 Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+		 mac.init(key);
 
-			 byte[] bytes = mac.doFinal(msg.getBytes("ASCII"));//May not need to convert it to ASCII - depends what the server will use
+		 byte[] bytes = mac.doFinal(msg.getBytes(PLAINTEXT_ENCODING));//May not need to convert it to UTF8 - depends what the server will use
 
-			 StringBuffer hash = new StringBuffer();
-			 for (int i = 0; i < bytes.length; i++) {
-				 String hex = Integer.toHexString(0xFF & bytes[i]);
-				 if (hex.length() == 1) {
-					 hash.append('0');
-				 }
-				 hash.append(hex);
+		 StringBuffer hash = new StringBuffer();
+		 for (int i = 0; i < bytes.length; i++) {
+			 String hex = Integer.toHexString(0xFF & bytes[i]);
+			 if (hex.length() == 1) {
+				 hash.append('0');
 			 }
-			 digest = hash.toString();
-		 } catch (UnsupportedEncodingException e) {
-		 } catch (InvalidKeyException e) {
-		 } catch (NoSuchAlgorithmException e) {
+			 hash.append(hex);
 		 }
+		 digest = hash.toString();
 
 		 return digest;
 	 }

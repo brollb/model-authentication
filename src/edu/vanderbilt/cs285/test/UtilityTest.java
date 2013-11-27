@@ -62,28 +62,35 @@ public class UtilityTest {
 	}
 	
 	@Test
+	/*
+	 * Tests that E( session request || username || HMAC(MSG, HK), SU )
+	 */
 	public void testSessionRequest() throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException{
 		
-		byte[] sessionRequest = CryptoUtilities.sessionRequest(psk_,iv_, username_, phoneKeys_.getPrivate());
+		byte[] sessionRequest = CryptoUtilities.sessionRequest(psk_, null, username_, serverKeys_.getPublic());
+		asymCipher_.init(Cipher.DECRYPT_MODE, serverKeys_.getPrivate());
+		byte[] plainBytes = asymCipher_.doFinal(sessionRequest);
+		byte[] requestBytes = new byte[CryptoUtilities.SESSION_REQUEST.getBytes().length];
+		byte[] userBytes = new byte[username_.getBytes().length];
+		byte[] hmacBytes = new byte[plainBytes.length - (CryptoUtilities.SESSION_REQUEST.getBytes().length + username_.getBytes().length)];
 		
-		byte[] request = new byte[CryptoUtilities.REQUEST_LENGTH_1];
-		System.arraycopy(sessionRequest, 0, request, 0, CryptoUtilities.REQUEST_LENGTH_1);
+		System.arraycopy(plainBytes, 0, requestBytes, 0, requestBytes.length);
+		assertEquals(CryptoUtilities.SESSION_REQUEST, new String(requestBytes, CryptoUtilities.PLAINTEXT_ENCODING));
 		
-		byte[] saltedUser = new byte[CryptoUtilities.REQUEST_LENGTH_2];
-		System.arraycopy(sessionRequest, CryptoUtilities.REQUEST_LENGTH_1, saltedUser, 0, CryptoUtilities.REQUEST_LENGTH_2);
+		System.arraycopy(plainBytes, requestBytes.length, userBytes, 0, userBytes.length);
+		assertEquals(username_, new String(userBytes,CryptoUtilities.PLAINTEXT_ENCODING));
 		
-		symCipher_.init(Cipher.DECRYPT_MODE, psk_,iv_);
-		byte[] requestPlain = symCipher_.doFinal(request);
-		assertEquals(CryptoUtilities.SESSION_REQUEST, new String(requestPlain,CryptoUtilities.PLAINTEXT_ENCODING));
+		System.arraycopy(plainBytes, requestBytes.length+userBytes.length, hmacBytes, 0, hmacBytes.length);
+		String keyString = psk_.toString();
+		assertEquals(CryptoUtilities.hmacDigest(CryptoUtilities.SESSION_REQUEST+username_, keyString), new String(hmacBytes,CryptoUtilities.PLAINTEXT_ENCODING));
 		
-		asymCipher_.init(Cipher.DECRYPT_MODE, phoneKeys_.getPublic());
-		byte[] userAndSaltPlain = asymCipher_.doFinal(saltedUser);
-		byte[] userPlain = new byte[username_.getBytes().length];
-		System.arraycopy(userAndSaltPlain, 0, userPlain, 0, userPlain.length);
-		assertEquals(username_, new String(userPlain, CryptoUtilities.PLAINTEXT_ENCODING));
+		
 	}
 	
 	@Test
+	/*
+	 * Tests E( E( SK0 || TL, PU) , SR) is returned by getNewSessionResponse()
+	 */
 	public void testGetNewSessionResponse() throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
 		byte[] sessionResponse = CryptoUtilities.getNewSessionResponse(phoneKeys_.getPublic(), serverKeys_.getPrivate(), 10);
 		
