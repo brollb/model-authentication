@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
@@ -44,23 +45,15 @@ public class UtilityTest {
 	
 	@Before
 	public void setUp() throws Exception {
-		KeyGenerator kg = KeyGenerator.getInstance(CryptoUtilities.SYMMETRIC_KEY_ALGORITHM);
-		kg.init(CryptoUtilities.SYM_KEY_SIZE);
-		psk_ = kg.generateKey();
-		
-		KeyPairGenerator keyGen = KeyPairGenerator.getInstance(CryptoUtilities.ASYMMETRIC_KEY_ALGORITHM);
-	    keyGen.initialize(1024);
-	    phoneKeys_ = keyGen.generateKeyPair();
-	    serverKeys_ = keyGen.generateKeyPair();
+		psk_ = CryptoUtilities.getSymmetricKey();
+	    phoneKeys_ = CryptoUtilities.getKeypair(false);
+	    serverKeys_ = CryptoUtilities.getKeypair(true);
 	    
 	    symCipher_ = CryptoUtilities.getSymmetricCipher();
 	    
 	    asymCipher_ = CryptoUtilities.getAsymmetricCipher();
 	    
-	    SecureRandom random = new SecureRandom();
-		byte[] ivBytes = new byte[CryptoUtilities.IV_LENGTH];
-		random.nextBytes(ivBytes);
-		iv_ = new IvParameterSpec(ivBytes);
+	    iv_ = CryptoUtilities.getNewIV();
 	    
 	}
 
@@ -88,6 +81,22 @@ public class UtilityTest {
 		byte[] userPlain = new byte[username_.getBytes().length];
 		System.arraycopy(userAndSaltPlain, 0, userPlain, 0, userPlain.length);
 		assertEquals(username_, new String(userPlain, CryptoUtilities.PLAINTEXT_ENCODING));
+	}
+	
+	@Test
+	public void testGetNewSessionResponse() throws InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException{
+		byte[] sessionResponse = CryptoUtilities.getNewSessionResponse(phoneKeys_.getPublic(), serverKeys_.getPrivate(), 10);
+		
+		asymCipher_.init(Cipher.DECRYPT_MODE, serverKeys_.getPublic());
+		byte[] halfway = asymCipher_.doFinal(sessionResponse);
+		
+		asymCipher_.init(Cipher.DECRYPT_MODE, phoneKeys_.getPrivate());
+		byte[] response = asymCipher_.doFinal(halfway);
+		
+		byte[] tlBytes = new byte[4];//one int worth of bytes
+		System.arraycopy(response, response.length-4, tlBytes, 0, 4);
+		assertEquals(10, ByteBuffer.wrap(tlBytes).getInt());
+		
 	}
 
 }

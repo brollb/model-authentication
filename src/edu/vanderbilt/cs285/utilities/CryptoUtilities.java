@@ -5,6 +5,7 @@ import javax.crypto.spec.IvParameterSpec;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.security.*;
 
 public class CryptoUtilities {
@@ -18,6 +19,7 @@ public class CryptoUtilities {
 	public static final String SYM_PADDING_TYPE = "PKCS5Padding";
 	public static final String ASYM_PADDING_TYPE = "PKCS1Padding";
 	public static final int SYM_KEY_SIZE = 256;
+	public static final int ASYM_KEY_SIZE = 1024;
 	public static final int REQUEST_LENGTH_1 = 32; //E( session request, PSK )
 	public static final int REQUEST_LENGTH_2 = 128; //E( username || salt, PR )
 	public static final int SALT_LENGTH = 26;
@@ -31,12 +33,12 @@ public class CryptoUtilities {
 	 */
 	public static byte[] sessionRequest(Key key, IvParameterSpec iv, String user, PrivateKey pk) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException{
 		
-		Cipher symCipher = Cipher.getInstance(SYMMETRIC_KEY_ALGORITHM+"/"+SYM_CYPHER_MODE+"/"+SYM_PADDING_TYPE);
+		Cipher symCipher = getSymmetricCipher();
 		symCipher.init(Cipher.ENCRYPT_MODE, key, iv);
 		byte[] requestPlain = SESSION_REQUEST.getBytes(PLAINTEXT_ENCODING);
 		byte[] requestBytes = symCipher.doFinal(requestPlain);		
 		
-		Cipher asymCipher = Cipher.getInstance(ASYMMETRIC_KEY_ALGORITHM+"/"+ASYM_CYPHER_MODE+"/"+ASYM_PADDING_TYPE);
+		Cipher asymCipher = getAsymmetricCipher();
 		asymCipher.init(Cipher.ENCRYPT_MODE, pk);
 		SecureRandom random = new SecureRandom();
 		String salt = new BigInteger(130, random).toString(32);
@@ -91,6 +93,40 @@ public class CryptoUtilities {
 	    } catch (Exception ex) {
 	        ex.printStackTrace();
 	    }
+	}
+	
+	public static Key getSymmetricKey() throws NoSuchAlgorithmException{
+		KeyGenerator kg = KeyGenerator.getInstance(SYMMETRIC_KEY_ALGORITHM);
+		kg.init(SYM_KEY_SIZE);
+		return kg.generateKey();
+	}
+	
+	public static KeyPair getKeypair(boolean bigKey) throws NoSuchAlgorithmException{
+		KeyPairGenerator keyGen = KeyPairGenerator.getInstance(CryptoUtilities.ASYMMETRIC_KEY_ALGORITHM);
+	    if (bigKey)
+	    	keyGen.initialize(CryptoUtilities.ASYM_KEY_SIZE*2);
+	    else
+	    	keyGen.initialize(CryptoUtilities.ASYM_KEY_SIZE);
+	    return keyGen.generateKeyPair();
+	}
+
+	
+	public static byte[] getNewSessionResponse(PublicKey pu, PrivateKey sr, int tl) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+		
+		Key newSessionKey = getSymmetricKey();
+		byte[] keyBytes = newSessionKey.getEncoded();
+		byte[] timesLeftBytes = ByteBuffer.allocate(4).putInt(tl).array();
+		byte[] payload = new byte[keyBytes.length+timesLeftBytes.length];
+		System.arraycopy(keyBytes, 0, payload, 0, keyBytes.length);
+		System.arraycopy(timesLeftBytes,0,payload,keyBytes.length,timesLeftBytes.length);
+		
+		Cipher asymCipher = getAsymmetricCipher();
+		asymCipher.init(Cipher.ENCRYPT_MODE, pu);
+		byte[] halfway = asymCipher.doFinal(payload);
+		
+		asymCipher.init(Cipher.ENCRYPT_MODE, sr);
+		return asymCipher.doFinal(halfway);
+		
 	}
 	
 }
