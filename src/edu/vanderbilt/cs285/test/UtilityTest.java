@@ -39,13 +39,7 @@ public class UtilityTest {
 	
 	@BeforeClass
 	public static void setUpOnce(){
-		try {
-	        java.lang.reflect.Field field = Class.forName("javax.crypto.JceSecurity").getDeclaredField("isRestricted");
-	        field.setAccessible(true);
-	        field.set(null, java.lang.Boolean.FALSE);
-	    } catch (Exception ex) {
-	        ex.printStackTrace();
-	    }
+		CryptoUtilities.allowEncryption();
 	}
 	
 	@Before
@@ -59,11 +53,9 @@ public class UtilityTest {
 	    phoneKeys_ = keyGen.generateKeyPair();
 	    serverKeys_ = keyGen.generateKeyPair();
 	    
-	    symCipher_ = Cipher.getInstance(CryptoUtilities.SYMMETRIC_KEY_ALGORITHM + "/"
-				+ CryptoUtilities.SYM_CYPHER_MODE + "/" + CryptoUtilities.SYM_PADDING_TYPE);
+	    symCipher_ = CryptoUtilities.getSymmetricCipher();
 	    
-	    asymCipher_ = Cipher.getInstance(CryptoUtilities.ASYMMETRIC_KEY_ALGORITHM + "/"
-				+  CryptoUtilities.ASYM_CYPHER_MODE + "/" + CryptoUtilities.ASYM_PADDING_TYPE);
+	    asymCipher_ = CryptoUtilities.getAsymmetricCipher();
 	    
 	    SecureRandom random = new SecureRandom();
 		byte[] ivBytes = new byte[CryptoUtilities.IV_LENGTH];

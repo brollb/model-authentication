@@ -23,6 +23,12 @@ public class CryptoUtilities {
 	public static final int SALT_LENGTH = 26;
 	public static final int IV_LENGTH = 16;
 	
+	/*
+	 * returns the byte[] that represents E( session request, PSK ) || E( username || salt, PR )
+	 * that should be sent from the phone to the server every time a new session key is needed.
+	 * As parameters, it takes the Symmetric Secret key, an IV (get a new one with getNewIV())
+	 * the username for the client, and the client's private key to sign the request.
+	 */
 	public static byte[] sessionRequest(Key key, IvParameterSpec iv, String user, PrivateKey pk) throws UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException{
 		
 		Cipher symCipher = Cipher.getInstance(SYMMETRIC_KEY_ALGORITHM+"/"+SYM_CYPHER_MODE+"/"+SYM_PADDING_TYPE);
@@ -45,5 +51,46 @@ public class CryptoUtilities {
 		return result;
 	}
 	
+	/*
+	 * returns a new IV, to be used with symmetric key encription since we are using CBC
+	 */
+	public static IvParameterSpec getNewIV(){
+		SecureRandom random = new SecureRandom();
+		byte[] ivBytes = new byte[CryptoUtilities.IV_LENGTH];
+		random.nextBytes(ivBytes);
+		return new IvParameterSpec(ivBytes);
+	}
+	
+	/*
+	 * convenience method to return a symmetric cipher using the algorithms and modes we've 
+	 * specified in our documentation.
+	 */
+	public static Cipher getSymmetricCipher() throws NoSuchAlgorithmException, NoSuchPaddingException{
+		return Cipher.getInstance(SYMMETRIC_KEY_ALGORITHM + "/" + SYM_CYPHER_MODE + "/" + SYM_PADDING_TYPE);
+	}
+	
+	/*
+	 * convenience method to return an asymmetric cipher using the algorithms and modes we've 
+	 * specified in our documentation. 
+	 */
+	public static Cipher getAsymmetricCipher() throws NoSuchAlgorithmException, NoSuchPaddingException{
+		return Cipher.getInstance(ASYMMETRIC_KEY_ALGORITHM + "/" + ASYM_CYPHER_MODE + "/" + ASYM_PADDING_TYPE);
+	}
+	
+	/*
+	 * Convenience function used to allow the utilization of large keys for encryiption. You will need to call
+	 * this at the beginning of any "main" function. If you fail to, you will get:
+	 * java.security.InvalidKeyException: Invalid Key Length
+	 * 
+	 */
+	public static void allowEncryption(){
+		try {
+	        java.lang.reflect.Field field = Class.forName("javax.crypto.JceSecurity").getDeclaredField("isRestricted");
+	        field.setAccessible(true);
+	        field.set(null, java.lang.Boolean.FALSE);
+	    } catch (Exception ex) {
+	        ex.printStackTrace();
+	    }
+	}
 	
 }
