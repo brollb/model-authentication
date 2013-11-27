@@ -97,12 +97,18 @@ public class CryptoUtilities {
 	}
 	
 
+	/*
+	 * convenience method to get symmetric key
+	 */
 	public static Key getSymmetricKey() throws NoSuchAlgorithmException{
 		KeyGenerator kg = KeyGenerator.getInstance(SYMMETRIC_KEY_ALGORITHM);
 		kg.init(SYM_KEY_SIZE);
 		return kg.generateKey();
 	}
 	
+	/*
+	 * convenience method to get asymmetric key. Use bigKey=true for the server key
+	 */
 	public static KeyPair getKeypair(boolean bigKey) throws NoSuchAlgorithmException{
 		KeyPairGenerator keyGen = KeyPairGenerator.getInstance(CryptoUtilities.ASYMMETRIC_KEY_ALGORITHM);
 	    if (bigKey)
@@ -112,7 +118,9 @@ public class CryptoUtilities {
 	    return keyGen.generateKeyPair();
 	}
 
-	
+	/*
+	 * returns a byte[] that is E( E( SK0 || TL, PU) , SR)
+	 */
 	public static byte[] getNewSessionResponse(PublicKey pu, PrivateKey sr, int tl) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 		
 		Key newSessionKey = getSymmetricKey();
