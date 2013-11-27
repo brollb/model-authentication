@@ -2,6 +2,7 @@ package edu.vanderbilt.cs285.utilities;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -80,7 +81,7 @@ public class CryptoUtilities {
 	}
 	
 	/*
-	 * Convenience function used to allow the utilization of large keys for encryiption. You will need to call
+	 * Convenience function used to allow the utilization of large keys for encryption. You will need to call
 	 * this at the beginning of any "main" function. If you fail to, you will get:
 	 * java.security.InvalidKeyException: Invalid Key Length
 	 * 
@@ -95,6 +96,7 @@ public class CryptoUtilities {
 	    }
 	}
 	
+
 	public static Key getSymmetricKey() throws NoSuchAlgorithmException{
 		KeyGenerator kg = KeyGenerator.getInstance(SYMMETRIC_KEY_ALGORITHM);
 		kg.init(SYM_KEY_SIZE);
@@ -128,5 +130,34 @@ public class CryptoUtilities {
 		return asymCipher.doFinal(halfway);
 		
 	}
+
+	/*
+	 * Adding a method for convenient HMAC generation
+	 */
+	 public static String hmacDigest(String msg, String keyString) {
+		 String digest = null;
+		 try {
+			 SecretKeySpec key = new SecretKeySpec((keyString).getBytes("UTF-8"), SYMMETRIC_KEY_ALGORITHM);
+			 Mac mac = Mac.getInstance(SYMMETRIC_KEY_ALGORITHM);
+			 mac.init(key);
+
+			 byte[] bytes = mac.doFinal(msg.getBytes("ASCII"));//May not need to convert it to ASCII - depends what the server will use
+
+			 StringBuffer hash = new StringBuffer();
+			 for (int i = 0; i < bytes.length; i++) {
+				 String hex = Integer.toHexString(0xFF & bytes[i]);
+				 if (hex.length() == 1) {
+					 hash.append('0');
+				 }
+				 hash.append(hex);
+			 }
+			 digest = hash.toString();
+		 } catch (UnsupportedEncodingException e) {
+		 } catch (InvalidKeyException e) {
+		 } catch (NoSuchAlgorithmException e) {
+		 }
+
+		 return digest;
+	 }
 	
 }
