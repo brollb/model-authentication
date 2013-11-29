@@ -29,6 +29,7 @@ public class Server {
 	        HttpServer server = HttpServer.create(new InetSocketAddress(SERVER_PORT), 0);
 	        server.createContext("/test", new MyHandler());
 	        server.setExecutor(null); // creates a default executor
+	        CryptoUtilities.allowEncryption();//allows the server to use heavy encryption algorithms and key sizes
 	        server.start();
 	    }
 

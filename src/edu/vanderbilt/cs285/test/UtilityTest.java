@@ -26,7 +26,7 @@ import edu.vanderbilt.cs285.utilities.CryptoUtilities;
 
 public class UtilityTest {
 
-	private Key psk_;
+	private SecretKey psk_;
 	private KeyPair phoneKeys_;
 	private KeyPair serverKeys_;
 	private Cipher symCipher_;
@@ -132,5 +132,32 @@ public class UtilityTest {
 		byte[] encrypted2 = CryptoUtilities.encryptData(start.getBytes(CryptoUtilities.PLAINTEXT_ENCODING), kp.getPrivate(), null);
 		byte[] decrypted2 = CryptoUtilities.decryptData(encrypted2, kp.getPublic(), null);
 		assertEquals(start, new String(decrypted2, CryptoUtilities.PLAINTEXT_ENCODING));
+	}
+	
+	@Test
+	/*
+	 * Test the reporting of confidence scores
+	 * Should be like: E ( IV, SU ) || E( RCS || TS1, SK ) || HMAC(MSG, HK)
+	 */
+	public void testReportConfidenceScores() throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, UnsupportedEncodingException{
+		String confidScores = "1,2,3,4,5,6,8,9,71,2,3,4,5,6,8,9,71,2,3,4,5,6,8,9,71,2,3,4,5,6,8,9,7";
+		String timeStamp = ""+System.currentTimeMillis()/1000;//in seconds
+		byte[] payload = (confidScores+"/"+timeStamp).getBytes();
+		SecretKey sk = CryptoUtilities.getSymmetricKey();
+		byte[] report = CryptoUtilities.reportConfidenceScores(iv_,serverKeys_.getPublic(),confidScores, timeStamp, sk,  psk_);
+		byte[] ivBytes = new byte[CryptoUtilities.IV_ENCRYPTED_LENGTH];
+		byte[] hmacBytes = new byte[CryptoUtilities.HMAC_LENGTH];
+		byte[] scoreAndTimestampBytes = new byte[report.length - ivBytes.length - hmacBytes.length];
+		
+		System.arraycopy(report, 0, ivBytes, 0, ivBytes.length);
+		System.arraycopy(report, ivBytes.length, scoreAndTimestampBytes, 0, scoreAndTimestampBytes.length);
+		System.arraycopy(report, report.length-hmacBytes.length, hmacBytes, 0, hmacBytes.length);
+		
+		IvParameterSpec theIV = new IvParameterSpec(CryptoUtilities.decryptData(ivBytes, serverKeys_.getPrivate(), null));
+		String mainBody = new String(CryptoUtilities.decryptData(scoreAndTimestampBytes, sk, theIV));
+		String[] splitBody = mainBody.split("/");
+		assertEquals(confidScores,splitBody[0]);
+		assertEquals(timeStamp, splitBody[1]);
+		assertEquals(CryptoUtilities.hmacDigest(payload, CryptoUtilities.getHK(psk_, sk)), new String(hmacBytes));
 	}
 }

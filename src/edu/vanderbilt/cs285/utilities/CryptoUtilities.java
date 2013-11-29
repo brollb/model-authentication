@@ -21,10 +21,9 @@ public class CryptoUtilities {
 	public static final String ASYM_PADDING_TYPE = "PKCS1Padding";
 	public static final int SYM_KEY_SIZE = 256;
 	public static final int ASYM_KEY_SIZE = 1024;
-	public static final int REQUEST_LENGTH_1 = 32; // E( session request, PSK )
-	public static final int REQUEST_LENGTH_2 = 128; // E( username || salt, PR )
-	public static final int SALT_LENGTH = 26;
 	public static final int IV_LENGTH = 16;
+	public static final int IV_ENCRYPTED_LENGTH = 256;
+	public static final int HMAC_LENGTH = 32;
 
 	/*
 	 * returns the byte[] that represents E( session request || username ||
@@ -42,21 +41,27 @@ public class CryptoUtilities {
 		String keyString;
 		if (sk == null)
 			keyString = psk.toString();
-		else {
-			byte[] k1 = psk.getEncoded();
-			byte[] k2 = sk.getEncoded();
-			byte[] xor = new byte[k1.length];
-			for (int i = 0; i < k1.length; i++) {
-				xor[i] = (byte) (k1[i] ^ k2[i]);
-			}
-			keyString = new String(xor);
-		}
+		else 
+			keyString = getHK(psk,sk);
 		String payload = SESSION_REQUEST + user;
 		payload += hmacDigest(payload, keyString);
 
 		Cipher asymCipher = getAsymmetricCipher();
 		asymCipher.init(Cipher.ENCRYPT_MODE, su);
 		return asymCipher.doFinal(payload.getBytes());
+	}
+	
+	/*
+	 * Little helper function to combine psk and sk for an hk
+	 */
+	public static String getHK(Key psk,Key sk){
+		byte[] k1 = psk.getEncoded();
+		byte[] k2 = sk.getEncoded();
+		byte[] xor = new byte[k1.length];
+		for (int i = 0; i < k1.length; i++) {
+			xor[i] = (byte) (k1[i] ^ k2[i]);
+		}
+		return new String(xor);
 	}
 
 	/*
@@ -227,6 +232,29 @@ public class CryptoUtilities {
 	 */
 	public static byte[] decryptData(byte[] data, Key key,IvParameterSpec iv) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException{
 		return encryptOrDecryptData(data, key, iv, Cipher.DECRYPT_MODE);
+	}
+	
+	/*
+	 * function for creating the packet to send the recent confidence scores
+	 * achieves the packet that represents: E ( IV, SU ) || E( RCS || TS1, SK ) || HMAC(MSG, HK)
+	 * in this case, MSG == RCS || TS1
+	 */
+	public static byte[] reportConfidenceScores(IvParameterSpec iv, PublicKey su, String rcs, String ts, SecretKey sk,  SecretKey psk) throws InvalidKeyException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException{
+		byte[] ivBytes = iv.getIV();
+		byte[] main = (rcs+"/"+ts).getBytes();
+		String hk = getHK(psk, sk);
+		
+		
+		byte[] ivEncBytes = encryptData(ivBytes, su, null);
+		byte[] mainEncBytes = encryptData(main, sk, iv);
+		byte[] hmac = hmacDigest(main, hk).getBytes();
+		
+		byte[] result = new byte[ivEncBytes.length+mainEncBytes.length+hmac.length];
+		System.arraycopy(ivEncBytes, 0, result, 0, ivEncBytes.length);
+		System.arraycopy(mainEncBytes, 0, result, ivEncBytes.length, mainEncBytes.length);
+		System.arraycopy(hmac, 0, result, result.length-hmac.length, hmac.length);
+		
+		return result;
 	}
 	
 }
