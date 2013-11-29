@@ -1,12 +1,16 @@
 package edu.vanderbilt.cs285.utilities;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.security.Key;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -23,8 +27,17 @@ public class Server {
 	 * 
 	 */
 	private static final int SERVER_PORT = 8000;
+	private static final String LOG_FILE_PATH = "";
 	private static Map<String, userData> users = new HashMap<String, userData>();
 
+		public static void main(String args[]) throws Exception{
+			/*
+			 * I added this simply for testing.
+			 * 
+			 * To test, go to localhost:8000/test.
+			 */
+			initialize();
+		}
 	    public static void initialize() throws Exception {
 	        HttpServer server = HttpServer.create(new InetSocketAddress(SERVER_PORT), 0);
 	        server.createContext("/test", new MyHandler());
@@ -34,17 +47,59 @@ public class Server {
 
 	    static class MyHandler implements HttpHandler {
 	        public void handle(HttpExchange t) throws IOException {
-	            if(t.getRequestMethod().equals("GET")) //Only respond to POST requests
-	            	return;
+	            //if(t.getRequestMethod().equals("GET")) //Only respond to POST requests
+	            	//return;
 
-	            String response = "This is the response\n";//Temporary content for testing
-	            response += "Request Method: " + t.getRequestMethod();
+	            String userID = null;
+	            String request = null;
+	            
+	            //Convert Request Body from InputStream to String
+	            StringBuilder inputStringBuilder = new StringBuilder();
+	            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(t.getRequestBody(), "UTF-8"));
+	            String line = bufferedReader.readLine();
+	            while(line != null){
+	                inputStringBuilder.append(line);inputStringBuilder.append('\n');
+	                line = bufferedReader.readLine();
+	            }
+	            request = inputStringBuilder.toString();
+
+	            //Getting the userID
+	            if( t.getRequestHeaders().containsKey("userID")){
+	            	userID = t.getRequestHeaders().get("userID").toString();
+	            }
+
+	            //Processing input and getting response
+	            String response = respond(userID, request);
 
 	            t.sendResponseHeaders(200, response.length());
 	            OutputStream os = t.getResponseBody();
 	            os.write(response.getBytes());
 	            os.close();
 	        }
+	    }
+	    
+	    /*
+	     * This next method is where the server processes the request and generates a response
+	     */
+	    private static String respond(String userID, String request){
+	    	String response = null;
+	    	
+	    	if( userID == null){//Then this is the initialization message
+	    		
+	    	}
+	    	//TODO handle the user request for more 'Times Left'
+
+	    	//TODO Build appropriate response
+
+	    	return response;
+	    }
+	    
+	    //Log Confidence Scores
+	    private static void log(String filename, String log) throws IOException{
+	    	String file = LOG_FILE_PATH + filename;
+	    	BufferedWriter writer = new BufferedWriter( new FileWriter( file ));
+	    	writer.write(log);
+	    	writer.close();
 	    }
 	    
 	    /*
