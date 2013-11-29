@@ -111,7 +111,7 @@ public class CryptoUtilities {
 	/*
 	 * convenience method to get symmetric key
 	 */
-	public static Key getSymmetricKey() throws NoSuchAlgorithmException {
+	public static SecretKey getSymmetricKey() throws NoSuchAlgorithmException {
 		KeyGenerator kg = KeyGenerator.getInstance(SYMMETRIC_KEY_ALGORITHM);
 		kg.init(SYM_KEY_SIZE);
 		return kg.generateKey();
@@ -190,4 +190,43 @@ public class CryptoUtilities {
 		return digest;
 	}
 
+	/*
+	 * Utility function for easy encription of data, given a key.
+	 * To get said key, try CryptoUtilities.getAsymmetricKey() or CryptoUtilities.getSymmetricKey()
+	 * The iv is only for symmetric encryption, null otherwise
+	 */
+	public static byte[] encryptData(byte[] data, Key key, IvParameterSpec iv) throws NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidAlgorithmParameterException{
+		return encryptOrDecryptData(data, key, iv, Cipher.ENCRYPT_MODE);
+	}
+	
+	/*
+	 * helper function for encryption or decryption. Should you encryptData() or decryptData() 
+	 */
+	private static byte[] encryptOrDecryptData(byte[] data, Key key,IvParameterSpec iv, int mode) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException{
+		
+		//asymmetric encryption
+		if (key instanceof PublicKey || key instanceof PrivateKey){
+			Cipher asymCipher = getAsymmetricCipher();
+			asymCipher.init(mode, key);
+			return asymCipher.doFinal(data);
+		}
+		//else if symmetic encryption
+		else if (key instanceof SecretKey){
+			Cipher symCipher = getSymmetricCipher();
+			symCipher.init(mode, key,iv);
+			return symCipher.doFinal(data);
+		}
+		else{
+			throw new InvalidKeyException("the passed key was neither a symmetric nor asymmetric key");
+		}
+	}
+	
+	/*
+	 * Utility function for easy decryption of data, given a key.
+	 * the iv is for symmetric decryption. Null otherwise
+	 */
+	public static byte[] decryptData(byte[] data, Key key,IvParameterSpec iv) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException{
+		return encryptOrDecryptData(data, key, iv, Cipher.DECRYPT_MODE);
+	}
+	
 }
