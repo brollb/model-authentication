@@ -14,6 +14,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.junit.After;
@@ -116,4 +117,20 @@ public class UtilityTest {
 
 	}
 
+	@Test
+	/*
+	 * Tests encryption and decryption of data
+	 */
+	public void testEncryptAndDecryptData() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, UnsupportedEncodingException, InvalidAlgorithmParameterException{
+		String start = "Some starting plaintext to be encrypted";
+		SecretKey sk = CryptoUtilities.getSymmetricKey();
+		byte[] encrypted = CryptoUtilities.encryptData(start.getBytes(CryptoUtilities.PLAINTEXT_ENCODING), sk, iv_);
+		byte[] decrypted = CryptoUtilities.decryptData(encrypted, sk, iv_);
+		assertEquals(start, new String(decrypted,CryptoUtilities.PLAINTEXT_ENCODING));
+		
+		KeyPair kp = CryptoUtilities.getKeypair(false);
+		byte[] encrypted2 = CryptoUtilities.encryptData(start.getBytes(CryptoUtilities.PLAINTEXT_ENCODING), kp.getPrivate(), null);
+		byte[] decrypted2 = CryptoUtilities.decryptData(encrypted2, kp.getPublic(), null);
+		assertEquals(start, new String(decrypted2, CryptoUtilities.PLAINTEXT_ENCODING));
+	}
 }
