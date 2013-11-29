@@ -159,7 +159,14 @@ public class CryptoUtilities {
 	/*
 	 * Adding a method for convenient HMAC generation
 	 */
-	public static String hmacDigest(String msg, String keyString)
+	public static String hmacDigest(String msg, String keyString) 
+			throws InvalidKeyException, UnsupportedEncodingException, 
+			NoSuchAlgorithmException {
+
+		return hmacDigest(msg.getBytes(PLAINTEXT_ENCODING), keyString);
+}
+
+	public static String hmacDigest(byte[] msg, String keyString)
 			throws UnsupportedEncodingException, NoSuchAlgorithmException,
 			InvalidKeyException {
 		String digest = null;
@@ -169,7 +176,7 @@ public class CryptoUtilities {
 		Mac mac = Mac.getInstance(HMAC_ALGORITHM);
 		mac.init(key);
 
-		byte[] bytes = mac.doFinal(msg.getBytes(PLAINTEXT_ENCODING));
+		byte[] bytes = mac.doFinal(msg);
 		StringBuffer hash = new StringBuffer();
 		for (int i = 0; i < bytes.length; i++) {
 			String hex = Integer.toHexString(0xFF & bytes[i]);
