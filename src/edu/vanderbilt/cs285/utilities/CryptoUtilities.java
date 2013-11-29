@@ -190,4 +190,28 @@ public class CryptoUtilities {
 		return digest;
 	}
 
+	/*
+	 * Utility function for easy encription of data, given a key.
+	 * To get said key, try CryptoUtilities.getAsymmetricKey() or CryptoUtilities.getSymmetricKey()
+	 */
+	public static byte[] encryptData(byte[] data, Key key) throws NoSuchAlgorithmException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException{
+		Class<? extends Key> klass = key.getClass();
+		
+		//asymmetric encryption
+		if (klass.equals(PublicKey.class) || klass.equals(PrivateKey.class)){
+			Cipher asymCipher = getAsymmetricCipher();
+			asymCipher.init(Cipher.ENCRYPT_MODE, key);
+			return asymCipher.doFinal(data);
+		}
+		//else if symmetic encryption
+		else if (klass.equals(SecretKey.class)){
+			Cipher symCipher = getSymmetricCipher();
+			symCipher.init(Cipher.ENCRYPT_MODE, key);
+			return symCipher.doFinal(data);
+		}
+		else{
+			throw new InvalidKeyException("the passed key was neither a symmetric nor asymmetric key");
+		}
+	}
+	
 }
