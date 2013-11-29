@@ -4,6 +4,10 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import sun.misc.BASE64Decoder;
+import sun.misc.BASE64Encoder;
+
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.security.*;
@@ -255,6 +259,23 @@ public class CryptoUtilities {
 		System.arraycopy(hmac, 0, result, result.length-hmac.length, hmac.length);
 		
 		return result;
+	}
+		
+	/*
+	 * Converting from key to string and vice-versa methods
+	 */
+	public static String createKeyString(Key key){
+	    BASE64Encoder encoder = new BASE64Encoder();
+
+	    return encoder.encode(key.getEncoded());
+	}
+	
+	public static Key createKeyFromString(String keyString, String algo) throws IOException{
+	    BASE64Decoder decoder = new BASE64Decoder();
+	    byte[] encodedKey = decoder.decodeBuffer(keyString);
+
+	    return new SecretKeySpec(encodedKey,0,encodedKey.length, algo);     
+
 	}
 	
 }
