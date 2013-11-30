@@ -68,31 +68,12 @@ public class UtilityTest {
 
 		byte[] sessionRequest = CryptoUtilities.sessionRequest(psk_, null,
 				username_, serverKeys_.getPublic());
-		asymCipher_.init(Cipher.DECRYPT_MODE, serverKeys_.getPrivate());
-		byte[] plainBytes = asymCipher_.doFinal(sessionRequest);
-		byte[] requestBytes = new byte[CryptoUtilities.SESSION_REQUEST
-				.getBytes().length];
-		byte[] userBytes = new byte[username_.getBytes().length];
-		byte[] hmacBytes = new byte[plainBytes.length
-				- (CryptoUtilities.SESSION_REQUEST.getBytes().length + username_
-						.getBytes().length)];
-
-		System.arraycopy(plainBytes, 0, requestBytes, 0, requestBytes.length);
-		assertEquals(CryptoUtilities.SESSION_REQUEST, new String(requestBytes,
-				CryptoUtilities.PLAINTEXT_ENCODING));
-
-		System.arraycopy(plainBytes, requestBytes.length, userBytes, 0,
-				userBytes.length);
-		assertEquals(username_, new String(userBytes,
-				CryptoUtilities.PLAINTEXT_ENCODING));
-
-		System.arraycopy(plainBytes, requestBytes.length + userBytes.length,
-				hmacBytes, 0, hmacBytes.length);
+		byte[] decryptedBytes = CryptoUtilities.decryptData(sessionRequest, serverKeys_.getPrivate(), null);
+		String[] parts = new String(decryptedBytes, CryptoUtilities.PLAINTEXT_ENCODING).split("/");
+		assertEquals(CryptoUtilities.SESSION_REQUEST, parts[0]);
+		assertEquals(username_,parts[1]);
 		String keyString = psk_.toString();
-		assertEquals(CryptoUtilities.hmacDigest(CryptoUtilities.SESSION_REQUEST
-				+ username_, keyString), new String(hmacBytes,
-				CryptoUtilities.PLAINTEXT_ENCODING));
-
+		assertEquals(CryptoUtilities.hmacDigest(CryptoUtilities.SESSION_REQUEST+"/"+username_, keyString), parts[2]);
 	}
 
 	@Test

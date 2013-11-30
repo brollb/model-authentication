@@ -47,8 +47,8 @@ public class CryptoUtilities {
 			keyString = psk.toString();
 		else 
 			keyString = getHK(psk,sk);
-		String payload = SESSION_REQUEST + user;
-		payload += hmacDigest(payload, keyString);
+		String payload = SESSION_REQUEST +"/"+ user;
+		payload += "/" + hmacDigest(payload, keyString);
 
 		Cipher asymCipher = getAsymmetricCipher();
 		asymCipher.init(Cipher.ENCRYPT_MODE, su);

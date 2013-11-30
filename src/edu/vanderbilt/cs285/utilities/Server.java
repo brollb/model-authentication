@@ -6,11 +6,20 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -29,6 +38,7 @@ public class Server {
 	private static final int SERVER_PORT = 8000;
 	private static final String LOG_FILE_PATH = "";
 	private static Map<String, userData> users = new HashMap<String, userData>();
+	private static KeyPair keyPair; 
 
 		public static void main(String args[]) throws Exception{
 			/*
@@ -43,6 +53,7 @@ public class Server {
 	        server.createContext("/test", new MyHandler());
 	        server.setExecutor(null); // creates a default executor
 	        CryptoUtilities.allowEncryption();//allows the server to use heavy encryption algorithms and key sizes
+	        keyPair = CryptoUtilities.getKeypair(true);
 	        server.start();
 	    }
 
@@ -82,11 +93,11 @@ public class Server {
 	    /*
 	     * This next method is where the server processes the request and generates a response
 	     */
-	    private static String respond(String userID, String request){
+	    private static String respond(String userID, String request) {
 	    	String response = null;
 	    	
 	    	if( userID == null){//Then this is the initialization message
-	    		
+					
 	    	}
 	    	//TODO handle the user request for more 'Times Left'
 
