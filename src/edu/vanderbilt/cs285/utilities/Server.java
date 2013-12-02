@@ -1,4 +1,4 @@
-package edu.vanderbilt.cs285.utilities;
+//package edu.vanderbilt.cs285.utilities;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -7,12 +7,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -38,7 +41,7 @@ public class Server {
 	private static final int SERVER_PORT = 8000;
 	private static final String LOG_FILE_PATH = "";
 	private static Map<String, userData> users = new HashMap<String, userData>();
-	private static KeyPair keyPair; 
+	private static KeyPair keyPair;
 
 		public static void main(String args[]) throws Exception{
 			/*
@@ -48,10 +51,14 @@ public class Server {
 			 */
 			initialize();
 		}
+    
 	    public static void initialize() throws Exception {
-	        HttpServer server = HttpServer.create(new InetSocketAddress(SERVER_PORT), 0);
+	    	System.setProperty("java.net.preferIPv4Stack", "true");
+	        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByName("0.0.0.0"), SERVER_PORT), 0);
+	        System.out.println("Listening on: " + server.getAddress().toString().substring(1));
+	        System.out.println("\n\n");
 	        server.createContext("/test", new MyHandler());
-	        server.setExecutor(null); // creates a default executor
+	        //server.setExecutor(null); // creates a default executor
 	        CryptoUtilities.allowEncryption();//allows the server to use heavy encryption algorithms and key sizes
 	        keyPair = CryptoUtilities.getKeypair(true);
 	        server.start();
@@ -59,9 +66,19 @@ public class Server {
 
 	    static class MyHandler implements HttpHandler {
 	        public void handle(HttpExchange t) throws IOException {
-	            //if(t.getRequestMethod().equals("GET")) //Only respond to POST requests
-	            	//return;
-
+	        	
+	        	//Only respond to POST requests
+	            /*if(!t.getRequestMethod().equals("POST")) { 
+	            	String res = "Method not allowed: " + t.getRequestMethod();
+	            	t.sendResponseHeaders(405, res.length());
+	            	OutputStream os = t.getResponseBody();
+		            os.write(res.getBytes());
+		            os.close();
+	            	return;
+	            }*/
+	            	
+	        	System.out.println(t.getRemoteAddress().getAddress().toString().substring(1));
+	        	
 	            String userID = null;
 	            String request = null;
 	            
@@ -70,7 +87,8 @@ public class Server {
 	            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(t.getRequestBody(), "UTF-8"));
 	            String line = bufferedReader.readLine();
 	            while(line != null){
-	                inputStringBuilder.append(line);inputStringBuilder.append('\n');
+	                inputStringBuilder.append(line);
+	                inputStringBuilder.append('\n');
 	                line = bufferedReader.readLine();
 	            }
 	            request = inputStringBuilder.toString();
@@ -94,10 +112,13 @@ public class Server {
 	     * This next method is where the server processes the request and generates a response
 	     */
 	    private static String respond(String userID, String request) {
-	    	String response = null;
+	    	String response = "RESPONSE";
 	    	
-	    	if( userID == null){//Then this is the initialization message
+	    	//Then this is the initialization message
+	    	if( userID == null){
 					
+	    	} else {
+	    		
 	    	}
 	    	//TODO handle the user request for more 'Times Left'
 
