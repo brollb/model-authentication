@@ -1,4 +1,4 @@
-//package edu.vanderbilt.cs285.utilities;
+package edu.vanderbilt.cs285.utilities;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -23,6 +23,7 @@ import java.util.Scanner;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -79,8 +80,9 @@ public class Server {
 	            	
 	        	System.out.println(t.getRemoteAddress().getAddress().toString().substring(1));
 	        	
-	            String userID = null;
-	            String request = null;
+	            String userID = null,
+	            		reqID = null,
+	            		request = null;
 	            
 	            //Convert Request Body from InputStream to String
 	            StringBuilder inputStringBuilder = new StringBuilder();
@@ -97,9 +99,13 @@ public class Server {
 	            if( t.getRequestHeaders().containsKey("userID")){
 	            	userID = t.getRequestHeaders().get("userID").toString();
 	            }
+	            //Getting the reqID
+	            if( t.getRequestHeaders().containsKey("reqID")){
+	            	reqID = t.getRequestHeaders().get("reqID").toString();
+	            }
 
 	            //Processing input and getting response
-	            String response = respond(userID, request);
+	            String response = respond(userID, reqID, request);
 
 	            t.sendResponseHeaders(200, response.length());
 	            OutputStream os = t.getResponseBody();
@@ -111,18 +117,70 @@ public class Server {
 	    /*
 	     * This next method is where the server processes the request and generates a response
 	     */
-	    private static String respond(String userID, String request) {
+	    private static String respond(String userID, String reqID, String request) throws UnsupportedEncodingException {
 	    	String response = "RESPONSE";
-	    	
+	    			
 	    	//Then this is the initialization message
 	    	if( userID == null){
 					
 	    	} else {
+	    		userData userInfo = users.get(userID);
+	    		IvParameterSpec iv = null;
+	    		int reqLength = request.getBytes("UTF-8").length - CryptoUtilities.IV_ENCRYPTED_LENGTH - CryptoUtilities.HMAC_LENGTH;
+	    		byte[] encryptedIvBytes = new byte[CryptoUtilities.IV_ENCRYPTED_LENGTH];
+	    		byte[] encryptedReqBytes = new byte[reqLength];
+	    		byte[] hmacBytes = new byte[CryptoUtilities.HMAC_LENGTH];
+	    		
+	    		System.arraycopy(request.getBytes("UTF-8"), 0, encryptedIvBytes, 0, CryptoUtilities.IV_ENCRYPTED_LENGTH);
+	    		System.arraycopy(request.getBytes("UTF-8"), CryptoUtilities.IV_ENCRYPTED_LENGTH, encryptedReqBytes, 
+	    				0, reqLength);
+	    		System.arraycopy(request.getBytes("UTF-8"), reqLength + CryptoUtilities.IV_ENCRYPTED_LENGTH, hmacBytes, 
+	    				0, CryptoUtilities.HMAC_LENGTH);
+	    		
+	            try {
+	    		//Get the IV
+					byte[] ivBytes = CryptoUtilities.decryptData(encryptedIvBytes, userInfo.getPublicKey(), null);
+					iv = new IvParameterSpec(ivBytes);
+
+	    		//Decrypt the request
+					byte[] reqBytes = CryptoUtilities.decryptData(encryptedReqBytes, userInfo.getSessionKey(), iv);
+					request = reqBytes.toString();
+
+	    		//Check hmac digest
+					String hk = CryptoUtilities.getHK(userInfo.getPreSharedKey(), userInfo.getSessionKey()),
+							calculatedDigest = CryptoUtilities.hmacDigest(reqBytes, hk),
+							receivedDigest = hmacBytes.toString();
+					
+					if( receivedDigest.equals(calculatedDigest)){
+						System.out.println("Message integrity established.");
+					}else{
+						System.out.println("Message lacks integrity.");
+						System.out.println("calculated digest: " + calculatedDigest + "\nreceived digest: " + receivedDigest);
+					}
+				} catch (InvalidKeyException | NoSuchAlgorithmException
+						| NoSuchPaddingException | IllegalBlockSizeException
+						| BadPaddingException
+						| InvalidAlgorithmParameterException e) {
+					e.printStackTrace();
+				}
+	    		
+	    	//TODO Build appropriate responses
+	    		switch(reqID){
+	    		case "sessionRequest": //TODO
+	    			break;
+
+	    		case "reportConfidenceScores"://TODO
+	    			break;
+
+	    		case "confirmKeyChange"://TODO
+	    			break;
+
+	    		default:
+	    			System.out.println("Received unrecognized request type: " + reqID);
+	    			break;
+	    		}
 	    		
 	    	}
-	    	//TODO handle the user request for more 'Times Left'
-
-	    	//TODO Build appropriate response
 
 	    	return response;
 	    }
