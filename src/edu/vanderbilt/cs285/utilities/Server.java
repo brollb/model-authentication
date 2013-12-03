@@ -2,6 +2,7 @@ package edu.vanderbilt.cs285.utilities;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -146,7 +147,6 @@ public class Server {
 			} catch (InvalidKeyException | NoSuchAlgorithmException
 					| NoSuchPaddingException | IllegalBlockSizeException
 					| BadPaddingException | InvalidAlgorithmParameterException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
@@ -162,7 +162,7 @@ public class Server {
 	 * This next method is where the server processes the request and generates a response
 	 */
 	private static String respond(String userID, String reqID, String request) 
-			throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
+			throws NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, IOException {
 		String response = "RESPONSE";
 
 		userData userInfo = null;
@@ -260,6 +260,8 @@ public class Server {
 			//if (score < .9) {
 				//userInfo.lockAccount();
 			//} 
+			//Log score to file and get appropriate times left
+			log( userInfo.getLogFileName(), Double.toString(score));
 			int TL = userInfo.isCompromised() ? -1 : TIMES_LEFT;
 			
 			String resString;
@@ -319,6 +321,12 @@ public class Server {
 		writer.write(log);
 		writer.close();
 	}
+	
+	//Checking if log file exists
+	private static boolean fileExists(String filename){
+		File tst = new File( LOG_FILE_PATH + filename);
+		return tst.exists();
+	}
 
 	/*
 	 * Next, I created a small userData class to allow storing user information easily using Map<String, userData>
@@ -331,7 +339,7 @@ public class Server {
 	 *        
 	 */
 	private class userData{
-		private String name;
+		private String name, logFile;
 		private PublicKey publicKey;
 		private SecretKey psk, sk, tempsk;
 		private long expDate;
@@ -342,6 +350,10 @@ public class Server {
 			name = uname;
 			publicKey = pubKey;
 			psk = PSK;
+			
+			while( fileExists(logFile)){
+				logFile = name + Math.floor( Math.random() * 1000) + ".log";
+			}
 		}
 
 		public String getName(){
@@ -354,6 +366,10 @@ public class Server {
 
 		public SecretKey getPreSharedKey(){
 			return psk;
+		}
+		
+		public String getLogFileName(){
+			return logFile;
 		}
 
 		public SecretKey getSessionKey(){
