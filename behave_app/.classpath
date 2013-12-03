@@ -5,5 +5,10 @@
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
 	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
 	<classpathentry exported="true" kind="con" path="com.android.ide.eclipse.adt.DEPENDENCIES"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/Model-Authentication"/>
+	<classpathentry kind="lib" path="/home/bdraff/Dropbox/Network Security/UnlimitedJCEPolicy/local_policy.jar"/>
+	<classpathentry kind="lib" path="/home/bdraff/Dropbox/Network Security/UnlimitedJCEPolicy/US_export_policy.jar"/>
+	<classpathentry kind="lib" path="/usr/lib/jvm/jre1.7.0/lib/rt.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

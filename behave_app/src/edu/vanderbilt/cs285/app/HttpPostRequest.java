@@ -26,7 +26,7 @@ public class HttpPostRequest {
 
 	}
 
-	public String send(String baseURL, Hashtable<String, String> params) {
+	public String send(String baseURL, Hashtable<String, String> headers, Hashtable<String, String> params) {
 
 		// Create a new HttpClient and Post Header
 		HttpClient httpClient = new DefaultHttpClient();
@@ -37,12 +37,17 @@ public class HttpPostRequest {
 			// Add your data
 			List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
 
+			// Add POST params to message body
 			for (String param : params.keySet()) {
 				nameValuePairs.add(new BasicNameValuePair(param, params
 						.get(param)));
 			}
-
 			httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+			
+			// Add params to message Header
+			for(String tag : headers.keySet()) {
+				httpPost.addHeader(tag, headers.get(tag));
+			}
 
 			// Execute HTTP Post Request
 			HttpResponse response = httpClient.execute(httpPost);

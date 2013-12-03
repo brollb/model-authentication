@@ -84,7 +84,7 @@ public class UtilityTest {
 			IllegalBlockSizeException, BadPaddingException,
 			NoSuchAlgorithmException, NoSuchPaddingException {
 		byte[] sessionResponse = CryptoUtilities.getNewSessionResponse(
-				phoneKeys_.getPublic(), serverKeys_.getPrivate(), 10);
+				phoneKeys_.getPublic(), psk_, 10);//erverKeys_.getPrivate(), 10);
 
 		asymCipher_.init(Cipher.DECRYPT_MODE, serverKeys_.getPublic());
 		byte[] halfway = asymCipher_.doFinal(sessionResponse);

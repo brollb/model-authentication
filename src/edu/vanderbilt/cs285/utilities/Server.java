@@ -1,4 +1,4 @@
-//package edu.vanderbilt.cs285.utilities;
+package edu.vanderbilt.cs285.utilities;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -99,7 +99,7 @@ public class Server {
 	            }*/
 
 			System.out.println(t.getRemoteAddress().getAddress().toString().substring(1));
-
+			
 
 			String userID = null;
 			String request = null;
@@ -115,6 +115,8 @@ public class Server {
 				line = bufferedReader.readLine();
 			}
 			request = inputStringBuilder.toString();
+			
+			System.out.println("Received Request. Message:" + request);
 
 			//Getting the userID
 			if( t.getRequestHeaders().containsKey("userID")){
@@ -133,9 +135,11 @@ public class Server {
 				os.close();
 				return;
 			}
+			
+			System.out.println("UserID:" + userID +", reqID:" + requestID);
 
 			//Processing input and getting response
-			String response = respond(userID, requestID, request);
+			String response = "Received!";//respond(userID, requestID, request);
 
 
 			t.sendResponseHeaders(200, response.length());

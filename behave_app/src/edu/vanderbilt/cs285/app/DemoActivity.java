@@ -1,9 +1,5 @@
 package edu.vanderbilt.cs285.app;
 
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Hashtable;
-
 import android.os.Bundle;
 import android.app.Activity;
 import android.view.Menu;
@@ -12,12 +8,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class DemoActivity extends Activity {
-	// the networking will ONLY function if this is running on an emulator
-	public static final String serverURLString = "http://10.0.2.2:8000/test"; // Emulator Uses 10.0.2.2 for localhost
-	public int checksLeft = 10; 
+	public static final String DEFAULT_USER = "DEFAULT_USER";
 	TextView console = null;
-	TextView timesleft= null;
-	URL serverURL = null; 
+	TextView timesleft;
+	Networking net = null;
+
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -25,15 +20,13 @@ public class DemoActivity extends Activity {
 		setContentView(R.layout.activity_demo);
 		console = (TextView)findViewById(R.id.text_console);
 		timesleft = (TextView)findViewById(R.id.text_model_checks_left);
+		net = new Networking(this);
 		
-		try {
-			serverURL = new URL(serverURLString);
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		// Set Initial checks left to 0 for safety
+		updateChecksLeft(0);
 		
-		timesleft.setText(checksLeft + "");
+		
+		writeToConsole("System Started. Not connected to server");
 	}
 
 	@Override
@@ -43,12 +36,18 @@ public class DemoActivity extends Activity {
 		return true;
 	}
 	
+//	/**
+//	 * Display an error message if we cannot connect to the server
+//	 */
+//	public void cantConnect() {
+//		Toast.makeText(this, "Cannot connect to the server! \nURL:" + serverURLString, 
+//				Toast.LENGTH_SHORT).show();
+//	}
 	
-	public void cantConnect() {
-		Toast.makeText(this, "Cannot connect to the server! \nURL:" + serverURLString, 
-				Toast.LENGTH_SHORT).show();
-	}
-	
+	/**
+	 * Convenience method that writes to the on-screen 'console'
+	 * @param msg Message to be added to the beginning of the console
+	 */
 	public void writeToConsole(final String msg) {
 	    DemoActivity.this.runOnUiThread(new Runnable() {
 	    	public void run() {
@@ -59,8 +58,10 @@ public class DemoActivity extends Activity {
 	    });
 	}
 	
-	public void decrementChecksLeft() {
-		checksLeft--;
+	/**
+	 * Updates the number of remaining model checks allowed and displays result onscreen
+	 */
+	public void updateChecksLeft(final int checksLeft) {
 		DemoActivity.this.runOnUiThread(new Runnable() {
 	    	public void run() {
 	    		try {
@@ -68,6 +69,7 @@ public class DemoActivity extends Activity {
 	    		} catch(Exception e){}
 	    	}
 	    });
+		
 	}
 
 	public void btn_init_onclick(View view)  
@@ -101,47 +103,36 @@ public class DemoActivity extends Activity {
 	public void btn_unencrypt_onclick(View view)  
 	{  
 	    final DemoActivity da = this;
-		Toast.makeText(this, "Test Unecrypt Button clicked!", Toast.LENGTH_SHORT).show();
-	    
-		// It will only connect while running on an emulator
-	    if(false == Network.canConnectToServer(serverURLString))
-	    	cantConnect();
-	    
-	    new Thread() {
-	    	public void run() {
-	    
-		    HttpPostRequest req = new HttpPostRequest();
-		    Hashtable<String, String> params = new Hashtable<String, String>();
-		    
-		    // POST Parameters
-		    params.put("userID", "bdraff");
-		    params.put("checksleft", checksLeft+"");
-		    params.put("timestamp", System.currentTimeMillis()+"");
-		    writeToConsole("Sending to " + serverURLString + ": " + params.toString() + "... ");
-		    final String response = req.send(serverURLString, params);
-		    System.out.println("Server Response: " + response);
-		    writeToConsole("Response Received. msg: " + response);
-		    decrementChecksLeft();
-	    	}
-	    }.start();
-	    
-	    
-	    
+		Toast.makeText(this, "Setting up encrypted connection with server" +
+				"... Please wait", Toast.LENGTH_LONG).show();
+		
+		net.firstConnection(DEFAULT_USER, null);
+		
+		
 	}  
 
 	public void btn_encrypt_onclick(View view)  
 	{  
-	    Toast.makeText(this, "Test Encrypt Button clicked!", Toast.LENGTH_SHORT).show();  
+	    //Toast.makeText(this, "Test Encrypt Button clicked!", Toast.LENGTH_SHORT).show();
+	    
+	    net.requestFirstSession(DEFAULT_USER);
 	}  
 
 	public void btn_success_onclick(View view)  
 	{  
-	    Toast.makeText(this, "Success Button clicked!", Toast.LENGTH_SHORT).show();  
+	    //Toast.makeText(this, "Success Button clicked!", Toast.LENGTH_SHORT).show();
+	    
+	    net.sendLogging(DEFAULT_USER, new int[]
+	    		{((int)Math.random()*20),((int)Math.random()*20),((int)Math.random()*20)});
 	}  
 
 	public void btn_alarm_onclick(View view)  
 	{  
-	    Toast.makeText(this, "Alarm Button clicked!", Toast.LENGTH_SHORT).show();  
+	    //Toast.makeText(this, "Alarm Button clicked!", Toast.LENGTH_SHORT).show();
+	    
+	    //net.confirmNewSession(DEFAULT_USER, 0);
+	    net.sendLogging(DEFAULT_USER, new int[]
+	    		{(60 + (int)Math.random()*20),(60 + (int)Math.random()*20),(60 + (int)Math.random()*20)});
 	}  
 	
 }
