@@ -66,7 +66,7 @@ public class Server {
 		System.out.println();
 		System.out.println("Listening on: " + server.getAddress().toString().substring(1));
 		System.out.println("\n");
-		server.createContext("/test", new MyHandler());
+		server.createContext("/", new MyHandler());
 		server.setExecutor(null); // creates a default executor
 		CryptoUtilities.allowEncryption();//allows the server to use heavy encryption algorithms and key sizes
 		keyPair = CryptoUtilities.getKeypair(true);
@@ -151,12 +151,18 @@ public class Server {
 	private static String respond(String userID, String reqID, String request) throws UnsupportedEncodingException {
 		String response = "RESPONSE";
 
+		userData userInfo = null;
 		if (userID != null) {
-			userData userInfo = users.get(userID);
+			userInfo = users.get(userID);
+
+			if (userInfo == null) {
+				return "BAD USER ID";
+			}
+
 			IvParameterSpec iv = null;
-			
+
 			byte[] encBytes = request.getBytes("UTF-8");
-			
+
 			int reqLength = encBytes.length - CryptoUtilities.IV_ENCRYPTED_LENGTH - CryptoUtilities.HMAC_LENGTH;
 			byte[] encryptedIvBytes = new byte[CryptoUtilities.IV_ENCRYPTED_LENGTH];
 			byte[] encryptedReqBytes = new byte[reqLength];
@@ -168,8 +174,8 @@ public class Server {
 			System.arraycopy(encBytes, reqLength + CryptoUtilities.IV_ENCRYPTED_LENGTH, hmacBytes, 
 					0, CryptoUtilities.HMAC_LENGTH);
 
-			
-			
+
+
 			try {
 				//Get the IV
 				byte[] ivBytes = CryptoUtilities.decryptData(encryptedIvBytes, userInfo.getPublicKey(), null);
@@ -208,10 +214,6 @@ public class Server {
 		switch (reqID) {
 
 		case "initialize":
-
-			break;
-
-		case "sessionRequest":
 			byte[] byteString = new byte[40];
 			random.nextBytes(byteString);
 			String newID = new String(byteString);
@@ -220,26 +222,65 @@ public class Server {
 				newID = new String(byteString);
 			}
 
+
 			break;
 
 		case "reportConfidenceScores":
-			userData mUserdata = users.get(userID);
-			if (mUserdata == null) {
-				return "BAD USERID";
-			}
+
+			String[] parts = request.split("/");
+
+			if (parts.length != 2)
+				return "BAD FORMAT";
 
 
-			int tl = 0;
-
-			if (mUserdata.isSessionKeyValid()) {
-				byte[] msg = null;
-			} else {
+			double score = Double.parseDouble(parts[0]);
 			
+			int TL;
+			// TODO Not sure of the score here
+			if (score > .9) {
+				TL = 10;
+			} else {
+				TL = -1;
 			}
+			
+			String resString;
+			// MAKE NEW SESSION KEY
+			if (!userInfo.isSessionKeyValid()) {
+				SecretKey newkey = CryptoUtilities.getSymmetricKey();
+				userInfo.setTempKey(newkey);
+				resString = newkey.toString() + "/" + parts[1] + "/" + TL;
+			} else {
+				resString = parts[1] + "/" + TL;
+			}
+			
+			byte[] resbytes = resString.getBytes("UTF-8");
+			IvParameterSpec i = CryptoUtilities.getNewIV();
+			byte[] msg = CryptoUtilities.encryptData(resbytes, userInfo.getSessionKey(), i);
+			byte[] encIV = CryptoUtilities.encryptData(i.toString().getBytes("UTF-8"), userInfo.getPublicKey(), null);
+			byte[] hmac = CryptoUtilities.hmacDigest(resbytes, CryptoUtilities.getHK(userInfo.getSessionKey(), userInfo.getPreSharedKey())).getBytes("UTF-8");
+
+			byte[] msg_to_send = new byte[msg.length+encIV.length+hmac.length];
+
+			System.arraycopy(encIV, 0, msg_to_send, 0, encIV.length);
+			System.arraycopy(msg, 0, msg_to_send, encIV.length, msg.length);
+			System.arraycopy(hmac, 0, msg_to_send, encIV.length+msg.length, hmac.length);
+
+			response = new String(msg_to_send);
 			break;
 
 		case "confirmKeyChange":
+			String[] confirmationparts = request.split("/");
 
+			if (confirmationparts.length != 2)
+				return "BAD FORMAT";
+			
+			if (confirmationparts[0] == "CONFIRM") {
+				userInfo.setSessionKey();
+				response = "SESSION KEY CHANGED";
+			} else {
+				return "NO CONFIRMATION";
+			}
+			
 			break;
 
 
@@ -273,7 +314,7 @@ public class Server {
 	private class userData{
 		private String name;
 		private PublicKey publicKey;
-		private SecretKey psk, sk;
+		private SecretKey psk, sk, tempsk;
 		private long expDate;
 		private static final long validTime = 86400000; //1 day
 
@@ -304,9 +345,18 @@ public class Server {
 			return System.currentTimeMillis() < expDate;//I used System.currentTimeMillis() as it does not require
 			// a new object ( like new Date().getTime() )
 		}
+		
+		public void setTempKey(SecretKey newKey) {
+			tempsk = newKey;
+		}
+		
+		public SecretKey getTempKey() {
+			return tempsk;
+		}
 
-		public void setSessionKey(SecretKey newSessionKey){
-			sk = newSessionKey;
+		public void setSessionKey(){
+			sk = tempsk;
+			tempsk = null;
 			expDate = System.currentTimeMillis() + validTime;
 		}
 	}
