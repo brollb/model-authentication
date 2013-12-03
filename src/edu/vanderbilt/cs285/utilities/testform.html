@@ -1,0 +1,29 @@
+<html>
+    <head>
+        <title>Server Test</title>
+    </head>
+    <body>
+    
+        <p>Key: <input type="text" id="sdkfasf" /></p>
+        <p>Times Left: <input type="text" id="sfafd" /></p>
+        <button onClick="send()">Submit</button>
+        
+        <script src="http://code.jquery.com/jquery-latest.js"></script>
+        <script type="text/javascript">
+            function send() {
+                var url = "http://localhost:8000/test";
+                
+                $.ajax({
+                       type: "POST",
+                       url: url,
+                       headers: {"requestID": "normal"},
+                       data: "",
+                       success: function (response) {
+                            alert(response);
+                       }
+                });
+                
+            }
+        </script>
+    </body>
+</html>

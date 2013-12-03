@@ -15,6 +15,8 @@ import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +25,8 @@ import java.util.Scanner;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -38,10 +42,14 @@ public class Server {
 	 *            
 	 * 
 	 */
+	private static final int CONFIDENCE_BITS = 4;
+	private static final int TIMESTAMP_BITS = 4;
+	
 	private static final int SERVER_PORT = 8000;
 	private static final String LOG_FILE_PATH = "";
 	private static Map<String, userData> users = new HashMap<String, userData>();
 	private static KeyPair keyPair;
+	private static SecureRandom random = new SecureRandom();
 
 		public static void main(String args[]) throws Exception{
 			/*
@@ -58,10 +66,22 @@ public class Server {
 	        System.out.println("Listening on: " + server.getAddress().toString().substring(1));
 	        System.out.println("\n\n");
 	        server.createContext("/test", new MyHandler());
-	        //server.setExecutor(null); // creates a default executor
+	        server.setExecutor(null); // creates a default executor
 	        CryptoUtilities.allowEncryption();//allows the server to use heavy encryption algorithms and key sizes
 	        keyPair = CryptoUtilities.getKeypair(true);
 	        server.start();
+	        
+	       /* Key k = CryptoUtilities.getSymmetricKey();
+	        IvParameterSpec iv = CryptoUtilities.getNewIV();
+	        byte[] b = CryptoUtilities.encryptData((new String("testtesttesttest")).getBytes(), k, iv);
+	        System.out.println("E length: "+b.length);
+	        byte[] h = CryptoUtilities.decryptData(b, k, iv);
+	        System.out.println("D length: "+h.length);*/
+	        
+	        KeyPair k = CryptoUtilities.getKeypair(false);
+	        IvParameterSpec iv = CryptoUtilities.getNewIV();
+	        byte[] b = CryptoUtilities.encryptData(iv.getIV(), k.getPublic(), iv);
+	        System.out.println("E length: "+b.length);
 	    }
 
 	    static class MyHandler implements HttpHandler {
@@ -81,6 +101,7 @@ public class Server {
 	        	
 	            String userID = null;
 	            String request = null;
+	            String type = null;
 	            
 	            //Convert Request Body from InputStream to String
 	            StringBuilder inputStringBuilder = new StringBuilder();
@@ -97,9 +118,21 @@ public class Server {
 	            if( t.getRequestHeaders().containsKey("userID")){
 	            	userID = t.getRequestHeaders().get("userID").toString();
 	            }
+	            
+	            //Getting the request type
+	            if(t.getRequestHeaders().containsKey("requestID")){
+	            	type = t.getRequestHeaders().get("requestID").toString();
+	            } else {
+	            	String res = "Missing request type";
+	            	t.sendResponseHeaders(500, res.length());
+	            	OutputStream os = t.getResponseBody();
+		            os.write(res.getBytes());
+		            os.close();
+	            	return;
+	            }
 
 	            //Processing input and getting response
-	            String response = respond(userID, request);
+	            String response = respond(type, userID, request);
 
 	            t.sendResponseHeaders(200, response.length());
 	            OutputStream os = t.getResponseBody();
@@ -111,15 +144,63 @@ public class Server {
 	    /*
 	     * This next method is where the server processes the request and generates a response
 	     */
-	    private static String respond(String userID, String request) {
+	    private static String respond(String type, String userID, String request) {
 	    	String response = "RESPONSE";
 	    	
-	    	//Then this is the initialization message
-	    	if( userID == null){
-					
-	    	} else {
+	    	byte[] requestBytes = request.getBytes();
+	    	
+	    	// Needed to work with ajax post stuff, not sure if needed later
+	    	type = type.substring(1, type.length()-1);
+	    	if (userID != null)
+	    		userID = userID.substring(1, userID.length()-1);
+	    	//System.out.println(type);
+	    	switch (type) {
+	    	
+	    	case "initialize":
+	    		byte[] byteString = new byte[40];
+	    		random.nextBytes(byteString);
+				String newID = new String(byteString);
+				while (users.containsKey(newID)) {
+					random.nextBytes(byteString);
+					newID = new String(byteString);
+				}
+				
+	    		break;
 	    		
+	    	case "normal":
+	    		userData mUserdata = users.get(userID);
+	    		if (mUserdata == null) {
+	    			return "BAD USERID";
+	    		}
+	    		
+	    		// NEED TO CHANGE IF SIZES CHANGE
+	    		
+	    		byte[] ivEncrypted = new byte[128];
+	    		
+	    		
+	    		int tl = 0;
+	    		
+	    		if (mUserdata.isSessionKeyValid()) {
+	    			byte[] msg = null;
+	    		} else {
+	    			//byte[] ret = CryptoUtilities.getNewSessionResponse(mUserdata.getPublicKey(), mUserdata.getSessionKey(), 0);
+	    		}
+	    		break;
+	    		
+	    	case "confirm_new_sk":
+	    		
+	    		break;
+	    		
+	    		
+	    	// More here?
+	    	
+	    		
+	    		
+	    	default:
+	    		response = "BAD REQUEST TYPE";
+	    		break;	
 	    	}
+	    	
 	    	//TODO handle the user request for more 'Times Left'
 
 	    	//TODO Build appropriate response
@@ -147,11 +228,12 @@ public class Server {
 	     */
 	    private class userData{
 	    	private String name;
-	    	private Key publicKey, psk, sk;
+	    	private PublicKey publicKey;
+	    	private SecretKey psk, sk;
 	    	private long expDate;
 	    	private static final long validTime = 86400000; //1 day
 
-	    	public userData(String uname, Key pubKey, Key PSK){
+	    	public userData(String uname, PublicKey pubKey, SecretKey PSK){
 	    		name = uname;
 	    		publicKey = pubKey;
 	    		psk = PSK;
@@ -161,16 +243,16 @@ public class Server {
 	    		return name;
 	    	}
 	    	
-	    	public Key getPublicKey(){
+	    	public PublicKey getPublicKey(){
 	    		return publicKey;
 	    	}
 	    	
-	    	public Key getPreSharedKey(){
+	    	public SecretKey getPreSharedKey(){
 	    		return psk;
 	    	}
 
-	    	public Key getSessionKey(){
-	    		assert(isSessionKeyValid());
+	    	public SecretKey getSessionKey(){
+	    		//assert(isSessionKeyValid());
 	    		return sk;
 	    	}
 	    	
@@ -179,7 +261,7 @@ public class Server {
 	    													// a new object ( like new Date().getTime() )
 	    	}
 	    	
-	    	public void setSessionKey(Key newSessionKey){
+	    	public void setSessionKey(SecretKey newSessionKey){
 	    		sk = newSessionKey;
 	    		expDate = System.currentTimeMillis() + validTime;
 	    	}

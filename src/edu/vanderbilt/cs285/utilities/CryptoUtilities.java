@@ -23,7 +23,7 @@ public class CryptoUtilities {
 	public static final String ASYM_CYPHER_MODE = "ECB";
 	public static final String SYM_PADDING_TYPE = "PKCS5Padding";
 	public static final String ASYM_PADDING_TYPE = "PKCS1Padding";
-	public static final int SYM_KEY_SIZE = 256;
+	public static final int SYM_KEY_SIZE = 128;
 	public static final int ASYM_KEY_SIZE = 1024;
 	public static final int IV_LENGTH = 16;
 	public static final int IV_ENCRYPTED_LENGTH = 256;
@@ -142,9 +142,9 @@ public class CryptoUtilities {
 	}
 
 	/*
-	 * returns a byte[] that is E( E( SK0 || TL, PU) , SR)
+	 * returns a byte[] that is E( E( SK0 || TL, PU) , SK)
 	 */
-	public static byte[] getNewSessionResponse(PublicKey pu, PrivateKey sr,
+	public static byte[] getNewSessionResponse(PublicKey pu, SecretKey sk,
 			int tl) throws NoSuchAlgorithmException, NoSuchPaddingException,
 			InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
@@ -156,12 +156,15 @@ public class CryptoUtilities {
 		System.arraycopy(timesLeftBytes, 0, payload, keyBytes.length,
 				timesLeftBytes.length);
 
+		
+		
 		Cipher asymCipher = getAsymmetricCipher();
 		asymCipher.init(Cipher.ENCRYPT_MODE, pu);
 		byte[] halfway = asymCipher.doFinal(payload);
 
-		asymCipher.init(Cipher.ENCRYPT_MODE, sr);
-		return asymCipher.doFinal(halfway);
+		Cipher symCipher = getSymmetricCipher();
+		symCipher.init(Cipher.ENCRYPT_MODE, sk);
+		return symCipher.doFinal(halfway);
 
 	}
 
@@ -222,7 +225,7 @@ public class CryptoUtilities {
 		//else if symmetic encryption
 		else if (key instanceof SecretKey){
 			Cipher symCipher = getSymmetricCipher();
-			symCipher.init(mode, key,iv);
+			symCipher.init(mode, key, iv);
 			return symCipher.doFinal(data);
 		}
 		else{
