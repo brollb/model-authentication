@@ -6,10 +6,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import edu.vanderbilt.cs285.utilities.Server;
+
 public class ServerTest {
 
 	@Before
 	public void setUp() throws Exception {
+		Server server = new Server();
 	}
 
 	@After

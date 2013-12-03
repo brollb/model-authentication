@@ -53,13 +53,23 @@ public class Server {
 	private static KeyPair keyPair;
 	private static SecureRandom random = new SecureRandom();
 
+	/*
 	public static void main(String args[]) throws Exception{
 		/*
 		 * I added this simply for testing.
 		 * 
 		 * To test, go to localhost:8000/test.
-		 */
+		 * 
+		  
 		initialize();
+	}
+*/
+	public Server(){
+		try {
+			initialize();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static void initialize() throws Exception {
@@ -260,6 +270,7 @@ public class Server {
 			//if (score < .9) {
 				//userInfo.lockAccount();
 			//} 
+
 			//Log score to file and get appropriate times left
 			log( userInfo.getLogFileName(), Double.toString(score));
 			int TL = userInfo.isCompromised() ? -1 : TIMES_LEFT;
