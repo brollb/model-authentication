@@ -119,7 +119,7 @@ public class Server {
 			System.out.println("Received Request. Message:" + request);
 
 			//Getting the userID
-			if( t.getRequestHeaders().containsKey("userID")){
+			if(t.getRequestHeaders().containsKey("userID")){
 				userID = t.getRequestHeaders().get("userID").toString();
 			}
 
@@ -139,7 +139,15 @@ public class Server {
 			System.out.println("UserID:" + userID +", reqID:" + requestID);
 
 			//Processing input and getting response
-			String response = "Received!";//respond(userID, requestID, request);
+			String response = "";
+			try {
+				response = respond(userID, requestID, request);
+			} catch (InvalidKeyException | NoSuchAlgorithmException
+					| NoSuchPaddingException | IllegalBlockSizeException
+					| BadPaddingException | InvalidAlgorithmParameterException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
 
 			t.sendResponseHeaders(200, response.length());
@@ -152,7 +160,7 @@ public class Server {
 	/*
 	 * This next method is where the server processes the request and generates a response
 	 */
-	private static String respond(String userID, String reqID, String request) throws UnsupportedEncodingException {
+	private static String respond(String userID, String reqID, String request) throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
 		String response = "RESPONSE";
 
 		userData userInfo = null;
