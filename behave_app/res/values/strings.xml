@@ -4,12 +4,12 @@
     <string name="app_name">Behavioral Authentication</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
-    <string name="test_unencrypt">Test (unencrypted)</string>
-    <string name="test_encrypt">Test (encrypted)</string>
+    <string name="test_unencrypt">First Setup</string>
+    <string name="test_encrypt">New Session Key</string>
     <string name="model_test_success">Success</string>
     <string name="model_test_failure">Alarm</string>
     <string name="model_checks_left_label">Model Checks Left:</string>
-    <string name="send_test_message">Send Test Message:</string>
+    <string name="send_test_message">Initialize Communications:</string>
     <string name="model_check_test_label">Simulate Model Tests</string>
     <string name="btn_unencrypt_onclick">btn_unencrypt_onclick</string>
     <string name="btn_encrypt_onclick">btn_encrypt_onclick</string>
