@@ -1,0 +1,118 @@
+title Model Validation and Authentication
+
+Phone->Phone: install app
+
+Server->Server: set up server
+
+IT_Dept->Phone: Generate and Register PR / SU
+IT_Dept->Server: Register PU
+
+
+loop while behavioral model not trained
+Phone->Phone: train model
+end
+
+
+#Initial Registration of Phone to Server
+#Server->+Key Server: prove PU valid*/
+#Key Server -->-Server: validated 
+
+note right of Server
+The server's public key will need to be exchanged
+on initialization (in the real world, they could
+set up a certificate authority to get the server's
+public key to the client).
+end note
+
+Phone-->+Server: E( session request || username || PU || PSK || HMAC(MSG, PSK), SU )
+#I added the HMAC using HK as the key. As long as the PSK is unique to the phone and the server, HMAC will also provide source authentication - prevent random people registering and creating log info (which could be used in a DoS attack).
+
+Server-->-Phone: E( E( SK0 || TL, PU), SR) || HMAC(MSG, PSK)
+
+#Phone msg:
+#    - Recent Confidence Scores (for logging)
+#    - Nonce (to prevent replay)
+#    - HMAC (for data integrity)
+
+#Server msg:
+#    - Nonce (same as phone)
+#    - Times Left value
+#        OR
+#    - Nonce (new)
+#    - SKn (new session key)
+#    - Nonce
+#        OR
+#    - STOP message (Times Left = -1)
+# I think we should use timestamps instead of nonce's. A timestamp would prevent replay from phone to server which could be done to pollute the logging files.
+
+# Standard Communication
+
+loop lifetime of device
+#Phone to Server
+Phone->+Server: E(IV, SU) || E( RCS || TS1, SK ) || HMAC(MSG, HK)
+
+
+alt if SK is old (but still the most recent)
+# We could encrypt with the Phone Public Key to make the reset key messages uniform (though not vital)
+Server->-Phone: E( SK_new || TS1 || TL, PU) || HMAC(MSG, HK)
+
+# Phone confirms receipt of the new key
+Phone-->-Server: E(IV, SU) || E( Confirm_Message || TS1, SK_new) || HMAC(MSG, HK)
+
+#Server updates the phone session key in database
+end
+
+
+alt if phone is reported as compromised
+Server->-Phone: E(IV, PU) || E( TS1 || TL = -1, SK) || HMAC(MSG, HK)
+
+note right of Server
+After the user's phone is unlocked, 
+the TL should be set to zero and 
+it should resume regular behavior 
+(it's session key will be set to 'expired' on the server).
+end note
+
+#After user inputs password and unlocks phone
+Phone-->+Server: E(IV, SU) || E( RCS || TS1, SK ) || HMAC(MSG, HK)
+
+Server-->-Phone: E( SK_new || TS1 || TL, PU) || HMAC(MSG, HK)
+
+# Phone confirms receipt of the new key
+Phone-->-Server: E(IV, SU) || E( Confirm_Message || TS1, SK_new) || HMAC(MSG, HK)
+
+end
+
+
+alt else
+Server->-Phone: E(IV,PU) || E( TS1 || TL, SK) || HMAC(MSG, HK)
+end
+end
+
+
+
+note right of Phone
+ I used added numbers in designating TS 
+to show that the TS was used as a timestamp 
+then reflected (when number is repeated) like a nonce
+end note
+
+
+note left of IT_Dept
+ PSK = Pre-shared Key
+ SK = Current Session Key
+ SK_new = New Session Key
+ PU = Phone public key
+ PR = Phone private key
+ SU = Server public key
+ SR = Server private key
+ TL = Times Left (Behav model checks)
+ RCS = Recent Confidence Scores
+ TS = Timestamp
+ HK = HMAC Key (from PSK & SK)
+ MSG = given message sent 
+    end note
+
+
+
+
