@@ -44,6 +44,7 @@ public class Server {
 	 */
 	private static final int CONFIDENCE_BITS = 4;
 	private static final int TIMESTAMP_BITS = 4;
+	private static final int TIMES_LEFT = 10;
 
 	private static final int SERVER_PORT = 8000;
 	private static final String LOG_FILE_PATH = "";
@@ -160,7 +161,8 @@ public class Server {
 	/*
 	 * This next method is where the server processes the request and generates a response
 	 */
-	private static String respond(String userID, String reqID, String request) throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
+	private static String respond(String userID, String reqID, String request) 
+			throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
 		String response = "RESPONSE";
 
 		userData userInfo = null;
@@ -194,7 +196,14 @@ public class Server {
 				iv = new IvParameterSpec(ivBytes);
 
 				//Decrypt the request
-				byte[] reqBytes = CryptoUtilities.decryptData(encryptedReqBytes, userInfo.getSessionKey(), iv);
+				//If the user has an unconfirmed session key, we need to try to decrypt it with the temp session key
+				byte[] reqBytes;
+				if( userInfo.getTempKey() != null && reqID.equals("confirmKeyChange")){
+					reqBytes = CryptoUtilities.decryptData(encryptedReqBytes, userInfo.getTempKey(), iv);
+				}else{
+					reqBytes = CryptoUtilities.decryptData(encryptedReqBytes, userInfo.getSessionKey(), iv);
+				}
+
 				request = reqBytes.toString();
 
 				//Check hmac digest
@@ -247,13 +256,11 @@ public class Server {
 
 			double score = Double.parseDouble(parts[0]);
 			
-			int TL;
 			// TODO Not sure of the score here
-			if (score > .9) {
-				TL = 10;
-			} else {
-				TL = -1;
-			}
+			//if (score < .9) {
+				//userInfo.lockAccount();
+			//} 
+			int TL = userInfo.isCompromised() ? -1 : TIMES_LEFT;
 			
 			String resString;
 			// MAKE NEW SESSION KEY
@@ -329,6 +336,7 @@ public class Server {
 		private SecretKey psk, sk, tempsk;
 		private long expDate;
 		private static final long validTime = 86400000; //1 day
+		private boolean compromised = false;
 
 		public userData(String uname, PublicKey pubKey, SecretKey PSK){
 			name = uname;
@@ -371,5 +379,19 @@ public class Server {
 			tempsk = null;
 			expDate = System.currentTimeMillis() + validTime;
 		}
+
+		public boolean isCompromised(){
+			return compromised;
+		}
+		
+		public void lockAccount(){
+			compromised = true;
+			expDate = -1; //Need to change session key when unlocked
+		}
+		
+		public void unlockAccount(){
+			compromised = false;
+		}
+
 	}
 }
